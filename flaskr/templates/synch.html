@@ -1,0 +1,18 @@
+<!DOCTYPE HTML>
+<html>
+    <header>
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+        <script type="text/javascript" src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+        <script type="text/javascript" charset="utf-8" src="{{url_for('static', filename='/JS/synch.js')}}"></script>
+    </header>
+<head>
+    <title>Synchronized Sliders</title>
+</head>
+<body>
+    <h1>Synchronized Sliders!</h1>
+
+    <input id="slider1" class="sync" type="range" min="0" max="50" value="{{slider1}}" /> <br>
+    <input id="slider2" class="sync" type="range" min="0" max="50" value="{{slider2}}" />
+
+</body>
+</html>
