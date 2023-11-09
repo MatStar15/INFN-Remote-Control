@@ -1,19 +1,17 @@
 from flask import Blueprint, render_template
 from src.manager import *
-import machineScripts
 
 main = Blueprint("main", __name__)
 
 
 @main.route('/synch')
 def hello():
-    return render_template('synch.html', **status)
+    return render_template('synch.html', **test_value)
     
 @main.route('/')
 def home():
-    return render_template('index.html')
+    return render_template('index.html', **status)
     
 @main.route('/test')
 def test():
-    machineScripts.CustomSystem()
     return render_template('index.html')
