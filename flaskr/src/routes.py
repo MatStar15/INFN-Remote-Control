@@ -10,7 +10,7 @@ def hello():
     
 @main.route('/')
 def home():
-    return render_template('index.html', **status)
+    return render_template('index.html')
     
 @main.route('/test')
 def test():

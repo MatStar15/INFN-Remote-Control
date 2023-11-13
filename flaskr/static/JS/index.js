@@ -1,5 +1,3 @@
-
-
 labels = {
     start : ['Inizializza Acquisizione Dati!', 'waiting for response', 'started']
 }
@@ -12,7 +10,7 @@ $(document).ready(function(){
     var socket = io.connect();
 
     socket.on('connect', function() {
-        socket.emit('connected', {data: 'I\'m connected!'});
+        socket.emit('connected', socket.id);
     });
 
     const start_button = document.getElementById('start');
@@ -21,18 +19,19 @@ $(document).ready(function(){
     const reset_button = document.getElementById('reset');
     reset_button.addEventListener("click", on_reset);
 
-    var to_reset = []
+    const image = document.getElementById('image');
 
-    function disable(id, origin){
+    var local_disabled = []
+
+    function disable(id){
         element = document.getElementById(id)
         element.disabled = true;
         var off_label = labels[id][2]
         // .slice(-1)
         element.textContent = off_label;
-        to_reset.push(id)
-        if (origin != 'ext') {
-            socket.emit('disabled', id)
-        }
+        local_disabled.push(id);
+        // console.log('broadcasting')
+        socket.emit('disabled', id);
     }
 
     function start_acquisition(){
@@ -41,16 +40,22 @@ $(document).ready(function(){
     }
 
     function on_reset(){
-        for (id of to_reset){
+        for (id of local_disabled){
             entry = document.getElementById(id);
             entry.disabled = false;
             entry.textContent = labels[id][0];
         }
     }
 
-
     socket.on('update_disabled', function(id){
-        disable(id, 'ext')
-        console.log('received update')
+        console.log('updating disabled')
+        if (! local_disabled.includes(id)){
+            disable(id);
+        }
+    })
+
+    socket.on('update_picture', function(new_plot){
+        path = "/static//IMG/"+ new_plot
+        image.src = path
     })
 })
