@@ -16,8 +16,8 @@ $(document).ready(function(){
     const start_button = document.getElementById('start');
     start_button.addEventListener("click", start_acquisition);
 
-    const reset_button = document.getElementById('reset');
-    reset_button.addEventListener("click", on_reset);
+    // const reset_button = document.getElementById('reset');
+    // reset_button.addEventListener("click", reset);
 
     const image = document.getElementById('image');
 
@@ -25,6 +25,7 @@ $(document).ready(function(){
 
     function disable(id){
         element = document.getElementById(id)
+        console.log('disabeling' + id)
         element.disabled = true;
         var off_label = labels[id][2]
         // .slice(-1)
@@ -39,12 +40,13 @@ $(document).ready(function(){
         socket.emit('start');
     }
 
-    function on_reset(){
+    function reset(){
         for (id of local_disabled){
             entry = document.getElementById(id);
             entry.disabled = false;
             entry.textContent = labels[id][0];
         }
+        console.log('resetting')
     }
 
     socket.on('update_disabled', function(id){
@@ -58,4 +60,7 @@ $(document).ready(function(){
         path = "/static//IMG/"+ new_plot
         image.src = path
     })
+
+
+    socket.on('finished', reset())
 })

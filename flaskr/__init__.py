@@ -9,11 +9,15 @@ from flask import Flask, render_template
 set_cwd()
 from src.events import socketio
 from src.routes import main
+from src.backup import setup
 
 
 
 def create_app(test_config=None):
     # create and configure the app
+
+    setup()
+
     app = Flask(__name__, instance_relative_config=True)
     
 
@@ -37,5 +41,7 @@ def create_app(test_config=None):
     app.register_blueprint(main)
 
     socketio.init_app(app)
+
+
 
     return app
