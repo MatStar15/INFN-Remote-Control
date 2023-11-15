@@ -2,7 +2,8 @@ from flask_socketio import SocketIO, emit
 socketio = SocketIO()
 
 
-def finished():
+def finished(img_index):
+    # print('Image Index in Finished: ' + str(img_index))
     update_picture(test_images[img_index])
     emit('finished', broadcast= True)
 
@@ -27,6 +28,7 @@ def start():
 
 @socketio.on('disabled')
 def disabled(id):
+    print('disable: ' + id)
     if id not in disabled_features and not '':
         update_disabled_features(id)
         emit('update_disabled', id, broadcast= True)

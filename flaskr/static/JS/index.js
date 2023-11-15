@@ -41,6 +41,8 @@ $(document).ready(function(){
     function start_acquisition(){
         start_button.textContent = labels['start'][1];
         socket.emit('start');
+        disable(start_button.id)
+        console.log('Starting...')
     }
 
     function reset(){

@@ -47,5 +47,6 @@ def foo ():
     set_disabled_features([])
     global img_index
     img_index = (img_index+1)%2
-    finished()
+    # print('Image Index in Foo: ' + str(img_index))
+    finished(img_index)
 
