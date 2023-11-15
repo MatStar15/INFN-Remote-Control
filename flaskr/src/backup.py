@@ -4,6 +4,8 @@ file = "disabled_features_backup.txt"
 
 to_strip = '[]\''
 
+backup = []
+
 def read_data():
     data = []
     with open(file, 'r') as f:
@@ -18,6 +20,8 @@ def setup():
     except:
         print('already exists, loading')
     
+    global backup
+    
     backup = read_data()
 
     load_disabled_features(backup)
@@ -27,6 +31,9 @@ def setup():
 
 def save(new):
     print('saving')
-    backup = open(file, "w")
-    backup.write(str(new))
-    backup.close
+    if new not in backup:
+        backup = open(file, "w")
+        backup.write(str(new))
+        backup.close
+    else:
+        print('Feature Laready Exists in Backup')

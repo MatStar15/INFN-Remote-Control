@@ -23,16 +23,19 @@ $(document).ready(function(){
 
     var local_disabled = []
 
-    function disable(id){
+    function disable(id,ext = false){
         element = document.getElementById(id)
-        console.log('disabeling' + id)
+        console.log('disabeling ' + id)
         element.disabled = true;
         var off_label = labels[id][2]
         // .slice(-1)
         element.textContent = off_label;
         local_disabled.push(id);
         // console.log('broadcasting')
-        socket.emit('disabled', id);
+        if(!ext){
+            socket.emit('disabled', id);
+        };
+        
     }
 
     function start_acquisition(){
@@ -52,7 +55,7 @@ $(document).ready(function(){
     socket.on('update_disabled', function(id){
         console.log('updating disabled')
         if (! local_disabled.includes(id)){
-            disable(id);
+            disable(id, ext = true);
         }
     })
 
