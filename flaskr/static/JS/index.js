@@ -47,18 +47,23 @@ $(document).ready(function(){
 
     function reset(){
         for (id of local_disabled){
+            console.log('')
             entry = document.getElementById(id);
             entry.disabled = false;
             entry.textContent = labels[id][0];
         }
+        local_disabled = []
         console.log('resetting')
     }
 
     socket.on('update_disabled', function(id){
         // console.log('updating disabled')
+        // console.log('Received Update Disabled')
         if (! local_disabled.includes(id) && id != ''){
             disable(id, ext = true);
+            // console.log('Going to Disable')
         }
+        
     })
 
     socket.on('update_picture', function(new_plot){

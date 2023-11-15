@@ -18,7 +18,7 @@ def setup():
     try: 
         open(file, "x")
     except:
-        print('already exists, loading')
+        print('\nBackup file exists, loading content\n')
     
     global backup
     

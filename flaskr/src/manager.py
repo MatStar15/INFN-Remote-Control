@@ -22,7 +22,7 @@ def set_status(new_status):
 def load_disabled_features(new):
     global disabled_features
     disabled_features = new
-    print("manager: " + str(disabled_features))
+    print("Disabled Features: " + str(disabled_features)+ '\n')
 
 from .backup import save
 
@@ -42,7 +42,7 @@ from .events import finished
 
 def foo ():
     # ms.CustomSystem()
-    print('I am calculating...')
+    print('\nInitializing Calculations...\n')
     sleep(2)
     set_disabled_features([])
     global img_index
