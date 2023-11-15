@@ -38,7 +38,7 @@ def set_disabled_features(features):
 def get_disabled_features():
     return disabled_features
 
-from .manager import set_disabled_features
+from .events import finished
 
 def foo ():
     # ms.CustomSystem()
@@ -47,3 +47,5 @@ def foo ():
     set_disabled_features([])
     global img_index
     img_index = (img_index+1)%2
+    finished()
+

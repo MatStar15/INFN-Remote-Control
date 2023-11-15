@@ -26,14 +26,20 @@ def setup():
 
     load_disabled_features(backup)
     # print("Previously disabled features: " + backup + '\n')
-    
+
+
+def write_to_file(data):
+    backup = open(file, "w")
+    backup.write(str(data))
+    backup.close
 
 
 def save(new):
     print('saving')
-    if new not in backup:
-        backup = open(file, "w")
-        backup.write(str(new))
-        backup.close
-    else:
-        print('Feature Laready Exists in Backup')
+    try:
+        if new not in backup:
+            write_to_file(new)
+        else:
+            print('Feature Laready Exists in Backup')
+    except:
+        write_to_file(new)

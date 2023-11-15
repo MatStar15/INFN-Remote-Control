@@ -53,8 +53,8 @@ $(document).ready(function(){
     }
 
     socket.on('update_disabled', function(id){
-        console.log('updating disabled')
-        if (! local_disabled.includes(id)){
+        // console.log('updating disabled')
+        if (! local_disabled.includes(id) && id != ''){
             disable(id, ext = true);
         }
     })
@@ -65,5 +65,8 @@ $(document).ready(function(){
     })
 
 
-    socket.on('finished', reset())
+    socket.on('finished', function(){
+        console.log('Finished')
+        reset()
+    })
 })
