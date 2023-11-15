@@ -4,9 +4,9 @@ from src.manager import *
 main = Blueprint("main", __name__)
 
 
-@main.route('/synch')
-def hello():
-    return render_template('synch.html', **test_value)
+# @main.route('/synch')
+# def hello():
+#     return render_template('synch.html', **test_value)
     
 @main.route('/')
 def home():
