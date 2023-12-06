@@ -6,13 +6,15 @@
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
 <script type="text/javascript" src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script type="text/javascript" charset="utf-8" src="{{url_for('static', filename='/JS/index.js')}}"></script>
+
+<link rel="stylesheet" href="{{url_for('static', filename='/CSS/index.css')}}">
     </header>
     <head>
         <meta charset="UTF-8">
         <title>Machine Control</title>
     </head>
     <body>
-        <button id ='start' type="submit" class="synch">Inizializza Acquisizione Dati!</button>
+        <a id ='start' type="submit" class="synch">Inizializza Acquisizione Dati</a>
         <!-- <button id = 'reset' type="reset">Reset</button> -->
         <img id="image" src="">
     </body>
