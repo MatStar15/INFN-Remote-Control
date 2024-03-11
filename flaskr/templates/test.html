@@ -1,2 +1,10 @@
-Place Holder
-no use
+{% extends "layout.html" %}
+
+{%block body %}
+
+<form action="/view_file" method="get">
+    <input autocomplete="off" autofocus required name="file_name" placeholder="File Name" type="text">
+    <button type="submit">View</button>
+</form>
+
+{% endblock %}

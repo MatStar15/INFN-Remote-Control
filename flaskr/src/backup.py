@@ -28,6 +28,11 @@ def setup():
     # print("Previously disabled features: " + backup + '\n')
 
 
+    #Load Database
+    from .db_manager import create_db
+    create_db()
+
+
 def write_to_file(data):
     backup = open(file, "w")
     backup.write(str(data))

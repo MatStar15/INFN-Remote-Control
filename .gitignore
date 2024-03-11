@@ -163,3 +163,4 @@ cython_debug/
 disabled_features_backup.txt
 
 Test/
+.db

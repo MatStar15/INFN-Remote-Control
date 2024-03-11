@@ -1,21 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
-    <header>
-        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/
-1.5/jquery.min.js"></script>
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
-<script type="text/javascript" src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-<script type="text/javascript" charset="utf-8" src="{{url_for('static', filename='/JS/index.js')}}"></script>
+{% extends "layout.html" %}
 
-<link rel="stylesheet" href="{{url_for('static', filename='/CSS/index.css')}}">
-    </header>
-    <head>
-        <meta charset="UTF-8">
-        <title>Machine Control</title>
-    </head>
-    <body>
+{%block body %}
+
         <a id ='start' type="submit" class="synch">Inizializza Acquisizione Dati</a>
         <!-- <button id = 'reset' type="reset">Reset</button> -->
-        <img id="image" src="">
-    </body>
-</html>
+        <div>
+            <img id="image" src="" width="600px" height="auto">
+        </div>
+        <form action="/view_file" method="get">
+            <input autocomplete="on" autofocus required name="file_name" placeholder="File Name" type="text">
+            <button type="submit">Load File</button>
+        </form>
+
+
+        <div id="result-list">
+            {% for file in results %}
+            <div class="result-entry" href="/view_file/">{{file}}</div>
+            {% endfor %}
+
+        </div>
+
+{% endblock %}

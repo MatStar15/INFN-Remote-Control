@@ -25,13 +25,16 @@ $(document).ready(function(){
 
     function disable(id,ext = false){
         element = document.getElementById(id)
+
         console.log('disabeling ' + id)
-        element.disabled = true;
+        element.classList.add("synch-disabled")
+
+        
         var off_label = labels[id][2]
         // .slice(-1)
         element.textContent = off_label;
         local_disabled.push(id);
-        // console.log('broadcasting')
+
         if(!ext){
             socket.emit('disabled', id);
         };
@@ -39,17 +42,24 @@ $(document).ready(function(){
     }
 
     function start_acquisition(){
-        start_button.textContent = labels['start'][1];
-        socket.emit('start');
-        disable(start_button.id)
-        console.log('Starting...')
+        if (!start_button.classList.contains("synch-disabled")){
+            start_button.textContent = labels['start'][1];
+            socket.emit('start');
+            disable(start_button.id)
+            console.log('Starting...')
+        }else{
+            console.log("Already started")
+        }
     }
 
     function reset(){
         for (id of local_disabled){
             console.log('')
             entry = document.getElementById(id);
-            entry.disabled = false;
+
+            element.classList.remove("synch-disabled")
+            
+
             entry.textContent = labels[id][0];
         }
         local_disabled = []

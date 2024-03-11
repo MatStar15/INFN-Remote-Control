@@ -14,7 +14,6 @@ disabled_features = []
 def get_status():
     return status
 
-
 def set_status(new_status):
     global status
     status = new_status
