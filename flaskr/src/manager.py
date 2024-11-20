@@ -76,3 +76,5 @@ def foo ():
     
 #TODO: ceate a class for the machine that has the following methods: status (dictionary with working folder, if known the session name, and the current file name).
     
+
+#NOTE maybe add groups to file ntries in the database, so that the user can select a group of files coming from the same run, (file name should be similar if they are from the same run)
