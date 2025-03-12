@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Calculation Manager{% endblock %}
+
+{% block content %}
+<h1>Calculation Jobs Dashboard</h1>
+
+<div class="row mb-4">
+    <div class="col">
+        <a href="{{ url_for('main.new_job') }}" class="btn btn-primary">Create New Job</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <h5>Recent Jobs</h5>
+            </div>
+            <div class="card-body">
+                <table class="table" id="jobs-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Status</th>
+                            <th>Started</th>
+                            <th>Files</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in jobs %}
+                        <tr data-job-id="{{ job.id }}" class="job-row">
+                            <td>{{ job.id }}</td>
+                            <td class="job-status">
+                                <span class="badge bg-{{ 
+                                    'success' if job.status == 'completed' 
+                                    else 'danger' if job.status == 'failed' 
+                                    else 'warning' if job.status == 'running'
+                                    else 'secondary' if job.status == 'stopped'
+                                    else 'info' 
+                                }}">{{ job.status }}</span>
+                            </td>
+                            <td>{{ job.started_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td class="file-count">{{ job.files|length }}</td>
+                            <td>
+                                <a href="{{ url_for('main.job_detail', job_id=job.id) }}" class="btn btn-sm btn-outline-primary">Details</a>
+                                {% if job.status == 'running' %}
+                                <button class="btn btn-sm btn-outline-danger stop-job-btn" data-job-id="{{ job.id }}">Stop</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if not jobs %}
+                <p class="text-center">No jobs found. Create a new job to get started.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        // Add event listeners for stop buttons
+        document.querySelectorAll('.stop-job-btn').forEach(button => {
+            button.addEventListener('click', stopJob);
+        });
+    });
+    
+    function updateJobRow(job) {
+        const row = document.querySelector(`tr[data-job-id="${job.id}"]`);
+        if (!row) return;
+        
+        // Update status badge
+        const statusCell = row.querySelector('.job-status');
+        if (statusCell) {
+            let badgeClass = 'bg-info';
+            if (job.status === 'completed') badgeClass = 'bg-success';
+            else if (job.status === 'failed') badgeClass = 'bg-danger';
+            else if (job.status === 'running') badgeClass = 'bg-warning';
+            
+            statusCell.innerHTML = `<span class="badge ${badgeClass}">${job.status}</span>`;
+        }
+        
+        // Update file count
+        const fileCountCell = row.querySelector('.file-count');
+        if (fileCountCell) {
+            fileCountCell.textContent = job.file_count;
+        }
+        
+        // Update actions
+        const actionsCell = row.querySelector('td:last-child');
+        if (actionsCell) {
+            if (job.status === 'running') {
+                if (!actionsCell.querySelector('.stop-job-btn')) {
+                    const stopBtn = document.createElement('button');
+                    stopBtn.className = 'btn btn-sm btn-outline-danger stop-job-btn ms-2';
+                    stopBtn.dataset.jobId = job.id;
+                    stopBtn.textContent = 'Stop';
+                    stopBtn.addEventListener('click', stopJob);
+                    actionsCell.appendChild(stopBtn);
+                }
+            } else {
+                const stopBtn = actionsCell.querySelector('.stop-job-btn');
+                if (stopBtn) {
+                    stopBtn.remove();
+                }
+            }
+        }
+    }
+    
+    function stopJob(event) {
+        const jobId = event.target.dataset.jobId;
+        if (!confirm(`Are you sure you want to stop job ${jobId}?`)) {
+            return;
+        }
+        
+        fetch(`/api/jobs/${jobId}/stop`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                // Show success message
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success';
+                alertDiv.textContent = data.message;
+                
+                const container = document.querySelector('.container');
+                container.insertBefore(alertDiv, container.firstChild);
+                
+                // Auto-remove after 3 seconds
+                setTimeout(() => alertDiv.remove(), 3000);
+                
+                // Update the job row
+                updateJobRow(data.job);
+            }
+        })
+        .catch(error => {
+            console.error('Error stopping job:', error);
+            alert('Failed to stop job');
+        });
+    }
+</script>
+{% endblock %}

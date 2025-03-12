@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+
+{% block title %}Job {{ job.id }} Details - Calculation Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Job {{ job.id }} Details</h1>
+    <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Job Information</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8" id="job-status">
+                        <span class="badge bg-{{
+                            'success' if job.status == 'completed'
+                            else 'danger' if job.status == 'failed'
+                            else 'warning' if job.status == 'running'
+                            else 'secondary' if job.status == 'stopped'
+                            else 'info'
+                        }}">{{ job.status }}</span>
+                    </dd>
+
+                    <dt class="col-sm-4">Started</dt>
+                    <dd class="col-sm-8">{{ job.started_at.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+
+                    <dt class="col-sm-4">Completed</dt>
+                    <dd class="col-sm-8" id="job-completed">
+                        {{ job.completed_at.strftime('%Y-%m-%d %H:%M:%S') if job.completed_at else 'Not completed' }}
+                    </dd>
+                </dl>
+
+                <h6 class="mt-4">Parameters</h6>
+                <dl class="row">
+                    {% for key, value in job.parameters.items() %}
+                    <dt class="col-sm-4">{{ key }}</dt>
+                    <dd class="col-sm-8">{{ value }}</dd>
+                    {% endfor %}
+                </dl>
+
+                {% if job.status == 'running' %}
+                <button class="btn btn-danger mt-3" id="stop-job-btn">Stop Job</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Result Files</h5>
+            </div>
+            <div class="card-body">
+                <div id="files-list">
+                    {% if job.files %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Filename</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for file in job.files %}
+                                <tr data-file-id="{{ file.id }}">
+                                    <td>{{ file.filename }}</td>
+                                    <td class="file-status">
+                                        {% if file.analyzed %}
+                                        <span class="badge bg-success">Analyzed</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Raw</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="file-actions">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="/api/files/{{ file.id }}/download" class="btn btn-outline-primary">Download Raw</a>
+                                            {% if not file.analyzed %}
+                                            <button class="btn btn-outline-secondary analyze-btn" data-file-id="{{ file.id }}">
+                                                Analyze
+                                            </button>
+                                            {% else %}
+                                            <a href="/api/files/{{ file.id }}/download?analyzed=true" class="btn btn-outline-success">
+                                                Download Analysis
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-center">No files generated yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+
+function initSocket() {
+
+    const jobId = {{ job.id }};  // Template variable
+
+    // Initialize socket with explicit config
+    const socket = io({
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    autoConnect: false,
+        query: {
+            jobId: jobId
+        }
+});
+
+    // Debug events
+    socket.on('connect', () => {
+        console.log('Connected to server with ID:', socket.id);
+        // Test connection with a ping
+        socket.emit('test');
+    });
+
+    socket.on('disconnect', (reason) => {
+        console.log('Disconnected:', reason);
+    });
+
+    socket.on('error', (error) => {
+        console.error('Socket error:', error);
+    });
+
+
+
+
+        // Add event listeners
+    socket.on('job_update', (data) => {
+        console.log('Job update received:', data);
+        if (data && data.job) {
+            updateJobStatus(data.job);
+        }
+    });
+
+    socket.on('new_file', (data) => {
+        console.log('New file received:', data);
+        if (data && data.file && data.jobId === jobId) {
+            addNewFile(data.file);
+        }
+    });
+
+    socket.on('file_analyzed', (data) => {
+        console.log('File analyzed received:', data);
+        if (data && data.file && data.jobId === jobId) {
+            updateFileStatus(data.file);
+        }
+    });
+
+    socket.on('welcome', (data) => {
+        console.log('Received welcome message:', data.message);
+    });
+
+        socket.on('test', (data) => {
+        console.log('Received test message:', data.message);
+    });
+
+
+    return socket;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Job detail page loaded');
+
+    const jobId = {{ job.id }};
+
+    window.socket = initSocket();
+    try{
+        window.socket.connect();
+    } catch (error) {
+        console.error('Error connecting to socket:', error);
+    }
+
+
+    // Stop job button handler
+    const stopBtn = document.getElementById('stop-job-btn');
+    if (stopBtn) {
+        stopBtn.addEventListener('click', function() {
+            if (!confirm('Are you sure you want to stop this job?')) return;
+
+            fetch(`/api/jobs/${jobId}/stop`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.job) {
+                    updateJobStatus(data.job);
+                }
+            })
+            .catch(error => {
+                console.error('Error stopping job:', error);
+                alert('Failed to stop job');
+            });
+        });
+    }
+
+    // Analyze file button handlers
+    document.querySelectorAll('.analyze-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const fileId = this.dataset.fileId;
+            analyzeFile(fileId, this);
+        });
+    });
+
+});
+
+function updateJobStatus(job) {
+    const statusBadge = document.querySelector('#job-status .badge');
+    let badgeClass = 'bg-info';
+
+
+    if (job.status === 'completed') badgeClass = 'bg-success';
+    else if (job.status === 'failed') badgeClass = 'bg-danger';
+    else if (job.status === 'running') badgeClass = 'bg-warning';
+    else if (job.status === 'stopped') badgeClass = 'bg-secondary';
+
+    statusBadge.className = `badge ${badgeClass}`;
+    statusBadge.textContent = job.status;
+
+    // Update completed time if available
+    if (job.completed_at) {
+        document.getElementById('job-completed').textContent = formatTimestamp(job.completed_at);
+    }
+
+    // Show/hide stop button based on status
+    const stopBtn = document.getElementById('stop-job-btn');
+    if (stopBtn) {
+        if (job.status !== 'running') {
+            stopBtn.remove();
+        }
+    }
+}
+
+function addNewFile(file) {
+    const filesList = document.getElementById('files-list');
+    if (!filesList) return;
+
+    // Check if we need to create a new table
+    let tbody = filesList.querySelector('tbody');
+    if (!tbody) {
+        const noFilesMessage = filesList.querySelector('p');
+        if (noFilesMessage) {
+            noFilesMessage.remove();
+        }
+        const table = createFilesTable();
+        filesList.appendChild(table);
+        tbody = table.querySelector('tbody');
+    }
+
+    const row = document.createElement('tr');
+    row.dataset.fileId = file.id;
+
+    row.innerHTML = `
+        <td>${file.filename}</td>
+        <td class="file-status"><span class="badge bg-secondary">Raw</span></td>
+        <td class="file-actions">
+            <div class="btn-group btn-group-sm">
+                <a href="/api/files/${file.id}/download" class="btn btn-outline-primary">Download Raw</a>
+                <button class="btn btn-outline-secondary analyze-btn" data-file-id="${file.id}">Analyze</button>
+            </div>
+        </td>
+    `;
+
+    tbody.appendChild(row);
+
+    // Add analyze button handler
+    const analyzeBtn = row.querySelector('.analyze-btn');
+    if (analyzeBtn) {
+        analyzeBtn.addEventListener('click', function() {
+            analyzeFile(file.id, this);
+        });
+    }
+}
+
+function updateFileStatus(file) {
+    const row = document.querySelector(`tr[data-file-id="${file.id}"]`);
+    if (!row) return;
+
+    const statusCell = row.querySelector('.file-status');
+    const actionsCell = row.querySelector('.file-actions');
+
+    if (file.analyzed) {
+        statusCell.innerHTML = '<span class="badge bg-success">Analyzed</span>';
+        actionsCell.innerHTML = `
+            <div class="btn-group btn-group-sm">
+                <a href="/api/files/${file.id}/download" class="btn btn-outline-primary">Download Raw</a>
+                <a href="/api/files/${file.id}/download?analyzed=true" class="btn btn-outline-success">Download Analysis</a>
+            </div>
+        `;
+    } else {
+        statusCell.innerHTML = '<span class="badge bg-secondary">Raw</span>';
+        actionsCell.innerHTML = `
+            <div class="btn-group btn-group-sm">
+                <a href="/api/files/${file.id}/download" class="btn btn-outline-primary">Download Raw</a>
+                <button class="btn btn-outline-secondary analyze-btn" data-file-id="${file.id}">Analyze</button>
+            </div>
+        `;
+
+        // Reattach click handler to new analyze button
+        const newAnalyzeBtn = actionsCell.querySelector('.analyze-btn');
+        if (newAnalyzeBtn) {
+            newAnalyzeBtn.addEventListener('click', function() {
+                analyzeFile(file.id, this);
+            });
+        }
+    }
+}
+
+function createFilesTable() {
+    const table = document.createElement('table');
+    table.className = 'table';
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    `;
+    return table;
+}
+
+function analyzeFile(fileId, button) {
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Analyzing...';
+
+    // Call analyze endpoint
+    fetch(`/api/files/${fileId}/analyze`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.message) {
+            throw new Error('Analysis failed');
+        }
+        // Keep button disabled while analysis runs
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        button.disabled = false;
+        button.innerHTML = 'Retry Analysis';
+        alert('Failed to start analysis. Please try again.');
+    });
+}
+</script>
+{% endblock %}

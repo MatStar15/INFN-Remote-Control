@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}New Calculation Job - Calculation Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Create New Job</h1>
+    <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Job Parameters</h5>
+            </div>
+            <div class="card-body">
+                <form id="new-job-form" method="POST">
+                    <div class="mb-3">
+                        <label for="iterations" class="form-label">Number of Iterations</label>
+                        <input type="number" class="form-control" id="iterations" name="iterations"
+                               value="5" min="1" max="100" required>
+                        <div class="form-text">Number of calculation iterations (1-100)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="param1" class="form-label">Parameter 1</label>
+                        <input type="number" class="form-control" id="param1" name="param1"
+                               value="1.0" step="0.1" required>
+                        <div class="form-text">First calculation parameter</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="param2" class="form-label">Parameter 2</label>
+                        <input type="number" class="form-control" id="param2" name="param2"
+                               value="2.0" step="0.1" required>
+                        <div class="form-text">Second calculation parameter</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="delay" class="form-label">Delay (seconds)</label>
+                        <input type="number" class="form-control" id="delay" name="delay"
+                               value="2.0" step="0.1" min="0.1" max="10" required>
+                        <div class="form-text">Delay between iterations (0.1-10 seconds)</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="submit-btn">Start Job</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('new-job-form');
+    const submitBtn = document.getElementById('submit-btn');
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating Job...';
+
+        // Collect form data
+        const parameters = {
+            iterations: parseInt(document.getElementById('iterations').value),
+            param1: parseFloat(document.getElementById('param1').value),
+            param2: parseFloat(document.getElementById('param2').value),
+            delay: parseFloat(document.getElementById('delay').value)
+        };
+
+        // Validate parameters
+        if (parameters.iterations < 1 || parameters.iterations > 100) {
+            alert('Iterations must be between 1 and 100');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Start Job';
+            return;
+        }
+
+        if (parameters.delay < 0.1 || parameters.delay > 10) {
+            alert('Delay must be between 0.1 and 10 seconds');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Start Job';
+            return;
+        }
+
+        // Submit job creation request
+        fetch('/api/jobs', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ parameters: parameters })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.job) {
+                // Redirect to job details page
+                 setTimeout(() => {
+                    window.location.href = `/job/${data.job.id}`;
+                 }, 500);
+            } else {
+                throw new Error(data.message || 'Failed to create job');
+            }
+        })
+        .catch(error => {
+            console.error('Error creating job:', error);
+            alert(error.message || 'Failed to create job');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Start Job';
+        });
+    });
+});
+</script>
+{% endblock %}
