@@ -3,10 +3,7 @@ from watchdog.events import FileSystemEventHandler
 from app.models.job import CalculationJob, ResultFile
 from app import db, socketio
 from app.emitters import *
-import os
-import re
-import threading
-import logging
+import os, re, time, threading, logging
 
 logger = logging.getLogger(__name__)
 
@@ -14,10 +11,16 @@ logger = logging.getLogger(__name__)
 class ResultFileHandler(FileSystemEventHandler):
     def __init__(self, app):
         self.app = app
+
         # Patterns for file matching
-        self.result_pattern = re.compile(app.config.get('RESULT_FILE_PATTERN', r'.*\.result$'))
+        self.result_pattern = re.compile(app.config.get('RESULT_FILE_PATTERN', r'.*\.raw$'))
         self.analyzed_pattern = re.compile(app.config.get('ANALYZED_FILE_PATTERN', r'.*\.analyzed$'))
         self.job_pattern = re.compile(r'job_(\d+)')
+
+        logger.debug(f"Result pattern: {self.result_pattern.pattern}")
+        logger.debug(f"Analyzed pattern: {self.analyzed_pattern.pattern}")
+        logger.debug(f"Job pattern: {self.job_pattern.pattern}")
+
 
     def on_created(self, event):
         if event.is_directory:
@@ -26,18 +29,29 @@ class ResultFileHandler(FileSystemEventHandler):
         filepath = event.src_path
         filename = os.path.basename(filepath)
 
+
+
+        logger.debug(f"New file created: {filename}")
+
         # Skip temporary files
         if filename.startswith('.') or filename.startswith('~'):
+            logger.debug(f"Skipping temporary file: {filename}")
             return
 
         with self.app.app_context():
             try:
                 if self._is_analyzed_file(filepath):
+                    logger.debug(f"Handling analyzed file: {filepath}")
                     self._handle_analyzed_file(filepath)
                 elif self._is_result_file(filepath):
+                    logger.debug(f"Handling result file: {filepath}")
                     self._handle_result_file(filepath)
+                else:
+                    logger.info(f"Skipping file: {filepath}")
             except Exception as e:
+
                 logger.error(f"Error handling file {filepath}: {str(e)}")
+
 
     def _is_result_file(self, filepath):
         """Check if file is a result file but not an analyzed file"""
@@ -62,40 +76,32 @@ class ResultFileHandler(FileSystemEventHandler):
 
     def _handle_result_file(self, filepath):
         """Handle new result file creation"""
+        logger.info(f"Handling new result file: {filepath}")
         job_id = self._extract_job_id(filepath)
         if not job_id:
             logger.warning(f"Could not extract job ID from {filepath}")
             return
 
-        job = CalculationJob.query.get(job_id)
-        if not job:
-            logger.warning(f"Job {job_id} not found for file {filepath}")
-            return
+        with db.session.begin():
+            job = CalculationJob.query.get(job_id)
+            if not job:
+                logger.warning(f"Job {job_id} not found for file {filepath}")
+                return
 
-        # Check if the file already exists in the database
-        existing_file = ResultFile.query.filter_by(filepath=filepath).first()
-        if existing_file:
-            logger.info(f"File {filepath} already exists in the database")
-            return
+            existing_file = ResultFile.query.filter_by(filepath=filepath).with_for_update().first()
+            if existing_file:
+                logger.info(f"File {filepath} already exists in the database")
+                return
+            file = ResultFile(
+                job_id=job.id,
+                filename=os.path.basename(filepath),
+                filepath=filepath,
+                analyzed=False
+            )
+            db.session.add(file)
 
-        # Create new file record
-        print("Creating new file record")
-        file = ResultFile(
-            job_id=job.id,
-            filename=os.path.basename(filepath),
-            filepath=filepath,
-            analyzed=False
-        )
-        db.session.add(file)
-        db.session.commit()
+        emit_new_file(file, job.id)
 
-        # Notify clients
-        # if not file.analyzed:
-        emit_job_update(job)
-        # socketio.emit('new_file', {
-        #     'file': file.to_dict(),
-        #     'job_id': job.id
-        # })
 
         # Auto-analyze if configured
         if self.app.config.get('AUTO_ANALYZE_FILES', False):
@@ -125,16 +131,16 @@ class ResultFileHandler(FileSystemEventHandler):
 
         # Notify clients
         emit_file_analyzed(original_file, original_file.job_id)
-        # socketio.emit('file_analyzed', {
-        #     'file': original_file.to_dict(),
-        #     'job_id': original_file.job_id
-        # })
+
 
 
 def setup_file_watcher(app):
     """Set up and start the file system watcher"""
     watch_dir = app.config.get('RESULTS_DIRECTORY', './results')
-    os.makedirs(watch_dir, exist_ok=True)
+    logger.info(f"Setting up file watcher for {watch_dir}")
+    abs_watch_dir = os.path.abspath(watch_dir)
+
+    os.makedirs(abs_watch_dir, exist_ok=True)
 
     # Create and start observer
     event_handler = ResultFileHandler(app)
@@ -147,5 +153,11 @@ def setup_file_watcher(app):
     # Store observer reference
     app.file_observer = observer
 
-    logger.info(f"File watcher started monitoring: {watch_dir}")
+    def cleanup():
+        observer.stop()
+        observer.join()
+
+    import atexit
+    atexit.register(cleanup)
+
     return observer

@@ -61,8 +61,5 @@ def create_app(config_name='development'):
     with app.app_context():
         setup_file_watcher(app)
 
-    # Set up logging
-    # logging.basicConfig(level=logging.INFO)
-    # app.logger.setLevel(logging.INFO)
 
     return app

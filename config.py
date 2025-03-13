@@ -34,6 +34,10 @@ class Config:
 
     CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
+    # File watcher configuration
+    RESULT_FILE_PATTERN = os.environ.get('RESULT_FILE_PATTERN', r'.*\.raw$')
+    ANALYZED_FILE_PATTERN = os.environ.get('ANALYZED_FILE_PATTERN', r'.*\.analyzed$')
+
     RESULTS_DIRECTORY = os.environ.get(
         'RESULTS_DIRECTORY',
         'C:\\Users\\user\\PycharmProjects\\INFN-test\\results'
