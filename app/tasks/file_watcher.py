@@ -121,7 +121,8 @@ class ResultFileHandler(FileSystemEventHandler):
         ).first()
 
         if not original_file:
-            logger.warning(f"Original file not found for analyzed file {filepath}")
+            logger.warning(
+                f"Original file not found for analyzed file {filepath}")  # TODO: fix this, always returns this
             return
 
         # Update original file record

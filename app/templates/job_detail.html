@@ -152,15 +152,16 @@ function initSocket() {
     });
 
     socket.on('new_file', (data) => {
-        console.log('New file received:', data);
-        if (data && data.file && data.jobId === jobId) {
+        console.log('New file received:', data, "\n current JobID:", jobId, "\n data JobID:", data.job_id);
+
+        if (data && data.file && data.job_id === jobId) {
             addNewFile(data.file);
         }
     });
 
     socket.on('file_analyzed', (data) => {
         console.log('File analyzed received:', data);
-        if (data && data.file && data.jobId === jobId) {
+        if (data && data.file && data.job_id === job_id) {
             updateFileStatus(data.file);
         }
     });
@@ -252,7 +253,7 @@ function updateJobStatus(job) {
 
 function addNewFile(file) {
     //TODO: still not working
-    console.log('Adding new file:', file);
+    console.log('Adding new file:', file.filename);
 
     const filesList = document.getElementById('files-list');
     if (!filesList) {
