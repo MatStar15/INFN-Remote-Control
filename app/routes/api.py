@@ -1,21 +1,21 @@
-from flask import Blueprint, jsonify, request, send_file
-from app import db, emit_job_update
+from flask import Blueprint, jsonify, request, send_from_directory
+from app import db
 from app.models.job import CalculationJob, ResultFile
 from app.tasks.calculation import run_calculation
+from app.emitters import emit_job_update
 import os
 
 api = Blueprint('api', __name__)
 
 
-@api.route('/jobs', methods=['POST'])
+@api.route('/start-job', methods=['POST'])
 def create_job():
     try:
-        # print("Creating job")
         data = request.get_json()
         if not data or 'parameters' not in data:
             return jsonify({'message': 'No parameters provided'}), 400
 
-        parameters = data.get('parameters', {})
+        parameters = data.get('parameters')
 
         # Create new job record
         job = CalculationJob(
@@ -31,15 +31,19 @@ def create_job():
 
         # Launch calculation task with error handling
         try:
+            print("Creating job")
             task = run_calculation.delay(job.id, parameters)
+            job.task_id = task.id
+
             print(f"Task started: {task.id}")
             job.status = 'running'
             db.session.commit()
             emit_job_update(job)
 
             return jsonify({
-                'message': 'Job created successfully',
-                'job': job.to_dict()
+                'message': 'Job started successfully',
+                'job': job.to_dict(),
+                'status': 'success'
             }), 201
 
         except Exception as task_error:
@@ -82,19 +86,32 @@ def stop_job(job_id):
 
 @api.route('/files/<int:file_id>/download')
 def download_file(file_id):
+    print(f"Downloading file {file_id}")
     file = ResultFile.query.get_or_404(file_id)
     analyzed = request.args.get('analyzed', '').lower() == 'true'
 
     filepath = file.analysis_filepath if analyzed else file.filepath
 
     if not filepath or not os.path.exists(filepath):
+        print(f"File not found: {filepath}")
         return jsonify({'message': 'File not found'}), 404
 
-    return send_file(
-        filepath,
-        as_attachment=True,
-        download_name=os.path.basename(filepath)
+    directory = os.path.dirname(filepath)
+    filename = os.path.basename(filepath)
+
+    if not directory or not os.path.exists(directory):
+        print(f"Directory not found: {directory}")
+        return jsonify({'message': 'File directory not found'}), 404
+
+    package = send_from_directory(
+        directory,
+        filename,
+        as_attachment = True
     )
+
+    print(package)
+
+    return package
 
 
 @api.route('/files/<int:file_id>/analyze', methods=['POST'])

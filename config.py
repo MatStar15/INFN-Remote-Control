@@ -3,7 +3,12 @@ import os
 """
 1. Start Redis from Docker, can be done using services in pycharm
 2. Start the Celery worker using the following command:
-    celery -A celery_worker.celery -b redis://host.docker.internal:6379/0 worker  --loglevel=info -E --pool=solo (ADD LAST PART ONLY IF YOU ARE USING WINDOWS, single worker thread)
+    celery -A celery_worker.celery -b redis://host.docker.internal:6379/0 worker  --loglevel=info -E --pool=solo
+    or
+    celery -A celery_worker.celery -b redis://127.0.0.1:6379/0 worker --loglevel=info -E --pool=solo
+    
+    (ADD LAST PART ONLY IF YOU ARE USING WINDOWS, single worker thread)
+    
 3. Start the Flask application 
 """
 
@@ -13,7 +18,7 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-key-please-change')
     SQLALCHEMY_TRACK_MODIFICATIONS = True
 
-    REDIS_HOSTNAME = os.environ.get('REDIS_HOSTNAME', 'host.docker.internal')
+    REDIS_HOSTNAME = os.environ.get('REDIS_HOSTNAME', '127.0.0.1')
 
     # Use full Redis URL with host.docker.internal for Windows
     CELERY_BROKER_URL = os.environ.get(
@@ -31,7 +36,7 @@ class Config:
 
     RESULTS_DIRECTORY = os.environ.get(
         'RESULTS_DIRECTORY',
-        '.\\results'
+        'C:\\Users\\user\\PycharmProjects\\INFN-test\\results'
     )
     AUTO_ANALYZE_FILES = os.environ.get(
         'AUTO_ANALYZE_FILES',

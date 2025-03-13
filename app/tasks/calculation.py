@@ -1,4 +1,5 @@
-from app import celery, db, socketio, emit_job_update
+from app import celery, db, socketio
+from app.emitters import emit_job_update
 from app.models.job import CalculationJob
 import subprocess
 import os

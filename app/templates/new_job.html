@@ -87,21 +87,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Submit job creation request
-        fetch('/api/jobs', {
+        fetch('/api/start-job', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ parameters: parameters })
         })
-        .then(response => response.json())
+        .then(response => response.json()
+        )
         .then(data => {
-            if (data.job) {
+
+            if (data.job && data.job.id) {
                 // Redirect to job details page
                  setTimeout(() => {
                     window.location.href = `/job/${data.job.id}`;
                  }, 500);
             } else {
+                alert(data.message || 'Failed to create job');
                 throw new Error(data.message || 'Failed to create job');
             }
         })

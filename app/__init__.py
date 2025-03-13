@@ -1,56 +1,17 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
-from kombu import Connection
 from celery import Celery
 import os
 
-import logging
-
-def get_socketio():
-    return SocketIO(message_queue=os.environ.get('SOCKETIO_MESSAGE_QUEUE', 'redis://'),)
 
 # Initialize extensions
 db = SQLAlchemy()
 
 socketio = SocketIO()
 
-
-@socketio.on('error')
-def handle_error(e):
-    print(f"Socket error: {e}")
-    return {'message': 'Error handling socket event'}
-
-
-def emit_job_update(job):
-    external_socketio = get_socketio()
-    external_socketio.emit('job_update', {'job': job.to_dict()})
-    print(f"Emitted job update for job {job.id} to all clients")
-
-
-def emit_new_file(file, job_id):
-    external_socketio = get_socketio()
-    external_socketio.emit('new_file',
-                 {'file': file.to_dict(), 'job_id': job_id})
-    print(f"Emitted new file for job {job_id} to all clients")
-
-def emit_file_analyzed(file, job_id):
-    external_socketio = get_socketio()
-    external_socketio.emit('file_analyzed',
-                 {'file': file.to_dict(), 'job_id': job_id})
-    print(f"Emitted file analyzed for job {job_id} to all clients")
-
-
-@socketio.on('connect')
-def handle_connect():
-    print("Socket connected")
-    socketio.emit('welcome', {'message': 'Hi! Welcome to the server'})
-    return {'message': 'Connected to socket'}
-
-@socketio.on('test')
-def handle_connect():
-    print("test received from client")
-    socketio.emit('test', {'message': 'TEST'})
+def get_socketio():
+    return SocketIO(message_queue=os.environ.get('SOCKETIO_MESSAGE_QUEUE', 'redis://'),)
 
 
 celery = Celery()
@@ -73,6 +34,8 @@ def create_app(config_name='development'):
                       ping_interval=60,
                       asyn_mode='threading'
                       )
+
+    from . import emitters, events
 
     global celery
     celery = Celery(app.import_name)
