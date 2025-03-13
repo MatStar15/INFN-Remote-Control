@@ -251,12 +251,19 @@ function updateJobStatus(job) {
 }
 
 function addNewFile(file) {
+    //TODO: still not working
+    console.log('Adding new file:', file);
+
     const filesList = document.getElementById('files-list');
-    if (!filesList) return;
+    if (!filesList) {
+        console.error('Files list not found');
+        return;
+    }
 
     // Check if we need to create a new table
     let tbody = filesList.querySelector('tbody');
     if (!tbody) {
+        console.log('Creating new files table');
         const noFilesMessage = filesList.querySelector('p');
         if (noFilesMessage) {
             noFilesMessage.remove();
@@ -267,15 +274,15 @@ function addNewFile(file) {
     }
 
     const row = document.createElement('tr');
-    row.dataset.fileId = file.id;
+    row.dataset.fileId = file.id || '';  // Handle null id
 
     row.innerHTML = `
         <td>${file.filename}</td>
         <td class="file-status"><span class="badge bg-secondary">Raw</span></td>
         <td class="file-actions">
             <div class="btn-group btn-group-sm">
-                <a href="/api/files/${file.id}/download" class="btn btn-outline-primary">Download Raw</a>
-                <button class="btn btn-outline-secondary analyze-btn" data-file-id="${file.id}">Analyze</button>
+                <a href="/api/files/${file.id || ''}/download" class="btn btn-outline-primary">Download Raw</a>
+                <button class="btn btn-outline-secondary analyze-btn" data-file-id="${file.id || ''}">Analyze</button>
             </div>
         </td>
     `;

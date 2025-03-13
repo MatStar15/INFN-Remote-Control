@@ -30,7 +30,6 @@ class ResultFileHandler(FileSystemEventHandler):
         filename = os.path.basename(filepath)
 
 
-
         logger.debug(f"New file created: {filename}")
 
         # Skip temporary files
@@ -99,9 +98,10 @@ class ResultFileHandler(FileSystemEventHandler):
                 analyzed=False
             )
             db.session.add(file)
+            db.session.commit()
+            # TODO: fix duplicate entry for file in database
 
         emit_new_file(file, job.id)
-
 
         # Auto-analyze if configured
         if self.app.config.get('AUTO_ANALYZE_FILES', False):
