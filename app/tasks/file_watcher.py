@@ -3,12 +3,20 @@ from watchdog.events import FileSystemEventHandler
 from app.models.job import CalculationJob, ResultFile
 from app import db, socketio
 from app.emitters import *
-import os, re, time, threading, logging
+import os, re, threading, logging
 
 logger = logging.getLogger(__name__)
 
 
 class ResultFileHandler(FileSystemEventHandler):
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(ResultFileHandler, cls).__new__(cls)
+            cls._instance.__init__(*args, **kwargs)
+        return cls._instance
+
     def __init__(self, app):
         self.app = app
 
@@ -75,31 +83,39 @@ class ResultFileHandler(FileSystemEventHandler):
 
     def _handle_result_file(self, filepath):
         """Handle new result file creation"""
+
         logger.info(f"Handling new result file: {filepath}")
         job_id = self._extract_job_id(filepath)
         if not job_id:
             logger.warning(f"Could not extract job ID from {filepath}")
             return
 
-        with db.session.begin():
-            job = CalculationJob.query.get(job_id)
-            if not job:
-                logger.warning(f"Job {job_id} not found for file {filepath}")
-                return
+        existing = ResultFile.query.filter_by(job_id=self._extract_job_id(filepath),
+                                              filename=os.path.basename(filepath)
+                                              ).first()
+        if existing:
+            logger.info(f"File {filepath} already exists in the database")
+            return
 
-            existing_file = ResultFile.query.filter_by(filepath=filepath).with_for_update().first()
-            if existing_file:
-                logger.info(f"File {filepath} already exists in the database")
-                return
-            file = ResultFile(
-                job_id=job.id,
-                filename=os.path.basename(filepath),
-                filepath=filepath,
-                analyzed=False
-            )
-            db.session.add(file)
-            db.session.commit()
-            # TODO: fix duplicate entry for file in database
+        job = CalculationJob.query.get(job_id)
+        if not job:
+            logger.warning(f"Job {job_id} not found for file {filepath}")
+            return
+
+        existing_file = ResultFile.query.filter_by(filename=os.path.basename(filepath)).first()
+        if existing_file:
+            logger.info(f"File {filepath} already exists in the database")
+            return
+
+        file = ResultFile(
+            job_id=job.id,
+            filename=os.path.basename(filepath),
+            filepath=filepath,
+            analyzed=False
+        )
+        db.session.add(file)
+        db.session.commit()
+        # TODO: fix duplicate entry for file in database
 
         emit_new_file(file, job.id)
 
@@ -112,17 +128,23 @@ class ResultFileHandler(FileSystemEventHandler):
 
     def _handle_analyzed_file(self, filepath):
         """Handle analyzed file creation"""
+        logger.info(f"Handling new analyzed file: {filepath}")
+
         # Get original filename by removing _analyzed suffix
-        original_name = re.sub(r'\.analyzed$', '', os.path.basename(filepath))
+        original_name = re.sub(r'\.analyzed$', r'.raw',
+                               os.path.basename(filepath))  # TODO: make it more general, get extensions from config
 
         # Find the original file record
-        original_file = ResultFile.query.filter(
-            ResultFile.filename == original_name
+        original_file = ResultFile.query.filter_by(
+            filename=original_name
         ).first()
 
+        logger.debug(f"Original name: {original_name}")
+        logger.debug(f"Original file: {original_file}")
         if not original_file:
             logger.warning(
                 f"Original file not found for analyzed file {filepath}")  # TODO: fix this, always returns this
+            socketio.emit('error', {'message': f"Original file not found for analyzed file {filepath}"})
             return
 
         # Update original file record

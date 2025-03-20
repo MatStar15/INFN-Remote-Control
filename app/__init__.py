@@ -27,12 +27,15 @@ def create_app(config_name='development'):
     db.init_app(app)
     socketio.init_app(app,
                       message_queue=os.environ.get('SOCKETIO_MESSAGE_QUEUE', 'redis://'),
+                      ping_timeout=30,
+                      ping_interval=5,
                       cors_allowed_origins="*",
+                      asyn_mode='threading',
+                      reconnection=True,
+                      reconnection_attempts=3,
+                      reconnection_delay=500,
                       logger=True,
-                      engineio_logger=True,
-                      ping_timeout=300,
-                      ping_interval=60,
-                      asyn_mode='threading'
+                      # engineio_logger=True,
                       )
 
     from . import emitters, events

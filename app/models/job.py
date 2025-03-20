@@ -27,10 +27,14 @@ class ResultFile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     job_id = db.Column(db.Integer, db.ForeignKey('calculation_job.id'))
     filename = db.Column(db.String(255))
-    filepath = db.Column(db.String(255))
+    filepath = db.Column(db.String(255), unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow())
     analyzed = db.Column(db.Boolean, default=False)
     analysis_filepath = db.Column(db.String(255), nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('job_id', 'filename', name='unique_job_filename'),
+    )
 
     def to_dict(self):
         return {

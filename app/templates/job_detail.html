@@ -161,7 +161,7 @@ function initSocket() {
 
     socket.on('file_analyzed', (data) => {
         console.log('File analyzed received:', data);
-        if (data && data.file && data.job_id === job_id) {
+        if (data && data.file && data.job_id === jobId) {
             updateFileStatus(data.file);
         }
     });
