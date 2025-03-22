@@ -1,4 +1,3 @@
-from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from app.models.job import CalculationJob, ResultFile
 from app import db, socketio
@@ -10,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 class ResultFileHandler(FileSystemEventHandler):
     _instance = None
-
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
             cls._instance = super(ResultFileHandler, cls).__new__(cls)
@@ -18,15 +16,36 @@ class ResultFileHandler(FileSystemEventHandler):
         return cls._instance
 
     def __init__(self, app):
+        try:
+            if self.app:
+                logger.debug("Watcher instance already exists")
+                return
+        except Exception as e:
+            logger.debug(f"Creating new watcher instance")
         self.app = app
 
         # Patterns for file matching
-        self.result_pattern = re.compile(app.config.get('RESULT_FILE_PATTERN', r'.*\.raw$'))
-        self.analyzed_pattern = re.compile(app.config.get('ANALYZED_FILE_PATTERN', r'.*\.analyzed$'))
+        result_extension = app.config.get('RESULT_FILE_EXTENSION')
+        if not result_extension.startswith('.'):
+            result_extension = f'.{result_extension}'
+        if not result_extension:
+            logger.error("Invalid result file extension")
+            raise ValueError("Invalid result file extension")
+
+        analyzed_extension = app.config.get('ANALYZED_FILE_EXTENSION')
+        if not analyzed_extension.startswith('.'):
+            analyzed_extension = f'.{analyzed_extension}'
+        if not analyzed_extension:
+            logger.error("Invalid analyzed file extension")
+            raise ValueError("Invalid analyzed file extension")
+
+        self.result_pattern = re.compile(result_extension)
+        self.analyzed_pattern = re.compile(analyzed_extension)
+
         self.job_pattern = re.compile(r'job_(\d+)')
 
-        logger.debug(f"Result pattern: {self.result_pattern.pattern}")
-        logger.debug(f"Analyzed pattern: {self.analyzed_pattern.pattern}")
+        logger.info(f"Result pattern: {self.result_pattern.pattern}")
+        logger.info(f"Analyzed pattern: {self.analyzed_pattern.pattern}")
         logger.debug(f"Job pattern: {self.job_pattern.pattern}")
 
 
@@ -37,6 +56,7 @@ class ResultFileHandler(FileSystemEventHandler):
         filepath = event.src_path
         filename = os.path.basename(filepath)
 
+        logger.debug(f"New file created: {filename}")
 
         logger.debug(f"New file created: {filename}")
 
@@ -48,22 +68,22 @@ class ResultFileHandler(FileSystemEventHandler):
         with self.app.app_context():
             try:
                 if self._is_analyzed_file(filepath):
-                    logger.debug(f"Handling analyzed file: {filepath}")
                     self._handle_analyzed_file(filepath)
                 elif self._is_result_file(filepath):
-                    logger.debug(f"Handling result file: {filepath}")
                     self._handle_result_file(filepath)
                 else:
-                    logger.info(f"Skipping file: {filepath}")
+                    logger.debug(f"Skipping file: {filepath}")
             except Exception as e:
-
                 logger.error(f"Error handling file {filepath}: {str(e)}")
+                socketio.emit('error', {'message': f"Error handling file {filepath}: {str(e)}"})
+                # raise e
+
+
 
 
     def _is_result_file(self, filepath):
         """Check if file is a result file but not an analyzed file"""
-        return (self.result_pattern.search(filepath) and
-                not self.analyzed_pattern.search(filepath))
+        return self.result_pattern.search(filepath)
 
     def _is_analyzed_file(self, filepath):
         """Check if file is an analyzed result file"""
@@ -84,7 +104,7 @@ class ResultFileHandler(FileSystemEventHandler):
     def _handle_result_file(self, filepath):
         """Handle new result file creation"""
 
-        logger.info(f"Handling new result file: {filepath}")
+        logger.debug(f"Handling new result file: {filepath}")
         job_id = self._extract_job_id(filepath)
         if not job_id:
             logger.warning(f"Could not extract job ID from {filepath}")
@@ -128,10 +148,10 @@ class ResultFileHandler(FileSystemEventHandler):
 
     def _handle_analyzed_file(self, filepath):
         """Handle analyzed file creation"""
-        logger.info(f"Handling new analyzed file: {filepath}")
+        logger.debug(f"Handling new analyzed file: {filepath}")
 
         # Get original filename by removing _analyzed suffix
-        original_name = re.sub(r'\.analyzed$', r'.raw',
+        original_name = re.sub(r'\.analyzed$', self.app.config.get('RESULT_FILE_EXTENSION', r'.raw'),
                                os.path.basename(filepath))  # TODO: make it more general, get extensions from config
 
         # Find the original file record
@@ -159,7 +179,7 @@ class ResultFileHandler(FileSystemEventHandler):
 
 def setup_file_watcher(app):
     """Set up and start the file system watcher"""
-    watch_dir = app.config.get('RESULTS_DIRECTORY', './results')
+    watch_dir = app.config.get('RESULTS_DIRECTORY')  # default directory is ./results
     logger.info(f"Setting up file watcher for {watch_dir}")
     abs_watch_dir = os.path.abspath(watch_dir)
 
@@ -167,7 +187,16 @@ def setup_file_watcher(app):
 
     # Create and start observer
     event_handler = ResultFileHandler(app)
-    observer = Observer()
+
+    if os.name == 'posix':  # Linux or MacOS
+        logging.warning("Posix OS detected, using polling observer")
+        from watchdog.observers.polling import PollingObserver as Observer
+        observer = Observer(timeout=1.0)
+    else:
+        logging.warning("Windows OS detected, using regular observer")
+        from watchdog.observers import Observer
+        observer = Observer()
+
     observer.schedule(event_handler, watch_dir, recursive=True)
 
     thread = threading.Thread(target=observer.start, daemon=True)

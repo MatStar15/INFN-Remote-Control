@@ -3,7 +3,7 @@ from app import db
 from app.models.job import CalculationJob, ResultFile
 from app.tasks.calculation import run_calculation
 from app.emitters import emit_job_update
-import os
+import os, logging
 
 api = Blueprint('api', __name__)
 
@@ -47,7 +47,7 @@ def create_job():
             }), 201
 
         except Exception as task_error:
-            print(f"Task error: {str(task_error)}")
+            logging.error(f"Task error: {str(task_error)}")
             job.status = 'failed'
             db.session.commit()
             return jsonify({
